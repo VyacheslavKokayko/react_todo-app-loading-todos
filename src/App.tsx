@@ -1,8 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { UserWarning } from './UserWarning';
-import { USER_ID } from './api/todos';
+import { USER_ID, getTodos } from './api/todos';
 
-import { getTodos } from './api/todos';
 import { Todo } from './types/Todo';
 import { Filters } from './types/Filters';
 import { TodoItem } from './components/todoItem';
@@ -13,6 +12,7 @@ export const App: React.FC = () => {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [errorMessage, setErrorMessage] = useState('');
   const [filter, setFilter] = useState<Filters>(Filters.All);
+  const [title, setTitle] = useState('');
 
   useEffect(() => {
     getTodos()
@@ -29,7 +29,7 @@ export const App: React.FC = () => {
         return todos.filter(todo => !todo.completed);
       case Filters.Completed:
         return todos.filter(todo => todo.completed);
-      case Filters.All:
+
       default:
         return todos;
     }
@@ -41,9 +41,28 @@ export const App: React.FC = () => {
       0,
     );
   }, [todos]);
+
   if (!USER_ID) {
     return <UserWarning />;
   }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!title.trim()) {
+      return;
+    }
+
+    const newTodo: Todo = {
+      id: Date.now(),
+      title: title.trim(),
+      completed: false,
+      userId: USER_ID,
+    };
+
+    setTodos(prev => [newTodo, ...prev]);
+    setTitle('');
+  };
 
   return (
     <div className="todoapp">
@@ -51,36 +70,39 @@ export const App: React.FC = () => {
 
       <div className="todoapp__content">
         <header className="todoapp__header">
-          {/* this button should have `active` class only if all todos are completed */}
           <button
             type="button"
-            className="todoapp__toggle-all active"
+            className="todoapp__toggle-all"
             data-cy="ToggleAllButton"
           />
 
-          {/* Add a todo on form submit */}
-          <form>
+          <form onSubmit={handleSubmit}>
             <input
+              data-cy="NewTodoField"
+              className="todoapp__new-todo"
+              placeholder="What needs to be done?"
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+            />
+          </form>
+        </header>
 
-             />
-             </form>
-           </header>
-           <section className="todoapp__main" data-cy="TodoList">
-             {filteredTodos.map(todo => (
-               <TodoItem key={todo.id} todo={todo} />
-             ))}
-             </section>
+        <section className="todoapp__main" data-cy="TodoList">
+          {filteredTodos.map(todo => (
+            <TodoItem key={todo.id} todo={todo} />
+          ))}
+        </section>
 
-{/* Hide the footer if there are no todos */}
-{todos.length > 0 && (
-  <TodoFilter
-    currentFilter={filter}
-    onFilterChange={setFilter}
-    todos={todos}
-    activeTodosCount={activeTodosCount}
-  />
-)}
- </div>
+        {todos.length > 0 && (
+          <TodoFilter
+            currentFilter={filter}
+            onFilterChange={setFilter}
+            todos={todos}
+            activeTodosCount={activeTodosCount}
+          />
+        )}
+      </div>
+
       <ErrorMessage error={errorMessage} setError={setErrorMessage} />
     </div>
   );
