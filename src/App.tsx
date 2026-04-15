@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { TransitionGroup, CSSTransition } from 'react-transition-group';
 import { UserWarning } from './UserWarning';
 import { USER_ID, getTodos } from './api/todos';
 
@@ -10,9 +11,11 @@ import { ErrorMessage } from './components/erorrMessage';
 
 export const App: React.FC = () => {
   const [todos, setTodos] = useState<Todo[]>([]);
+  const [tempTodo, setTempTodo] = useState<Todo | null>(null);
+  const [processings, setProcessings] = useState<number[]>([]);
+  const [title, setTitle] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [filter, setFilter] = useState<Filters>(Filters.All);
-  const [title, setTitle] = useState('');
 
   useEffect(() => {
     getTodos()
@@ -36,33 +39,59 @@ export const App: React.FC = () => {
   }, [todos, filter]);
 
   const activeTodosCount = useMemo(() => {
-    return todos.reduce(
-      (count, todo) => (!todo.completed ? count + 1 : count),
-      0,
-    );
+    return todos.filter(todo => !todo.completed).length;
   }, [todos]);
-
-  if (!USER_ID) {
-    return <UserWarning />;
-  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!title.trim()) {
+    const trimmedTitle = title.trim();
+
+    if (!trimmedTitle) {
+      setErrorMessage('Title should not be empty');
+
       return;
     }
 
     const newTodo: Todo = {
-      id: Date.now(),
-      title: title.trim(),
+      id: 0,
+      title: trimmedTitle,
       completed: false,
       userId: USER_ID,
     };
 
-    setTodos(prev => [newTodo, ...prev]);
-    setTitle('');
+    setTempTodo(newTodo);
+
+    setTimeout(() => {
+      const createdTodo = {
+        ...newTodo,
+        id: Date.now(),
+      };
+
+      setTodos(prev => [...prev, createdTodo]);
+      setTempTodo(null);
+      setTitle('');
+    }, 500);
   };
+
+  const deleteTodo = (id: number) => {
+    setProcessings(prev => [...prev, id]);
+
+    setTimeout(() => {
+      setTodos(prev => prev.filter(todo => todo.id !== id));
+      setProcessings(prev => prev.filter(p => p !== id));
+    }, 500);
+  };
+
+  const clearCompleted = () => {
+    const completed = todos.filter(todo => todo.completed);
+
+    completed.forEach(todo => deleteTodo(todo.id));
+  };
+
+  if (!USER_ID) {
+    return <UserWarning />;
+  }
 
   return (
     <div className="todoapp">
@@ -70,27 +99,37 @@ export const App: React.FC = () => {
 
       <div className="todoapp__content">
         <header className="todoapp__header">
-          <button
-            type="button"
-            className="todoapp__toggle-all"
-            data-cy="ToggleAllButton"
-          />
-
           <form onSubmit={handleSubmit}>
             <input
               data-cy="NewTodoField"
+              type="text"
               className="todoapp__new-todo"
               placeholder="What needs to be done?"
               value={title}
               onChange={e => setTitle(e.target.value)}
+              autoFocus
             />
           </form>
         </header>
 
         <section className="todoapp__main" data-cy="TodoList">
-          {filteredTodos.map(todo => (
-            <TodoItem key={todo.id} todo={todo} />
-          ))}
+          <TransitionGroup>
+            {filteredTodos.map(todo => (
+              <CSSTransition key={todo.id} timeout={300} classNames="item">
+                <TodoItem
+                  todo={todo}
+                  isProcessed={processings.includes(todo.id)}
+                  onDelete={() => deleteTodo(todo.id)}
+                />
+              </CSSTransition>
+            ))}
+
+            {tempTodo && (
+              <CSSTransition key={0} timeout={300} classNames="temp-item">
+                <TodoItem todo={tempTodo} isProcessed />
+              </CSSTransition>
+            )}
+          </TransitionGroup>
         </section>
 
         {todos.length > 0 && (
@@ -99,6 +138,7 @@ export const App: React.FC = () => {
             onFilterChange={setFilter}
             todos={todos}
             activeTodosCount={activeTodosCount}
+            onClearCompleted={clearCompleted}
           />
         )}
       </div>

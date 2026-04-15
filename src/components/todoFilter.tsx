@@ -7,6 +7,7 @@ interface Props {
   onFilterChange: (filter: Filters) => void;
   todos: Todo[];
   activeTodosCount: number;
+  onClearCompleted: () => void;
 }
 
 export const TodoFilter: React.FC<Props> = ({
@@ -14,6 +15,7 @@ export const TodoFilter: React.FC<Props> = ({
   onFilterChange,
   todos,
   activeTodosCount,
+  onClearCompleted,
 }) => {
   return (
     <footer className="todoapp__footer" data-cy="Footer">
@@ -57,6 +59,7 @@ export const TodoFilter: React.FC<Props> = ({
         className="todoapp__clear-completed"
         data-cy="ClearCompletedButton"
         disabled={!todos.some(todo => todo.completed)}
+        onClick={onClearCompleted}
       >
         Clear completed
       </button>
